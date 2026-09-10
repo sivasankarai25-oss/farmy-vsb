@@ -13,7 +13,9 @@ import {
   User as UserIcon,
   Sparkles,
   ShieldCheck,
-  ChevronDown
+  ChevronDown,
+  Copy,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -28,6 +30,8 @@ import {
   signOut,
   RecaptchaVerifier, 
   signInWithPhoneNumber,
+  PhoneAuthProvider,
+  linkWithCredential,
   updateProfile,
   doc,
   setDoc,
@@ -88,6 +92,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   // Status & Feedback State
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<'unauthorized_domain' | 'operation_not_allowed' | 'other' | null>(null);
+  const [copiedDomain, setCopiedDomain] = useState(false);
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
 
@@ -127,12 +133,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   // Clean error on mode or tab switch
   const switchMode = (mode: AuthMode) => {
     setErrorMsg(null);
+    setErrorType(null);
     setInfoMsg(null);
     setAuthMode(mode);
   };
 
   const switchTab = (tab: AuthTab) => {
     setErrorMsg(null);
+    setErrorType(null);
     setInfoMsg(null);
     setActiveTab(tab);
     if (authMode === 'phone_otp' && tab === 'email') {
@@ -140,42 +148,80 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
     }
   };
 
-  // Detailed Firebase error mapper displaying actual errors and actionable guidance
-  const handleFirebaseError = (err: any) => {
-    console.error('Firebase Auth error:', err);
-    const code = err?.code || '';
-    const rawMsg = err?.message || '';
+  // Instant demo mode bypass: Allows exploring the complete application without Firebase Console setup
+  const handleContinueAsDemo = () => {
+    const demoUser: any = {
+      uid: 'demo-farmer-preview',
+      displayName: fullName.trim() || 'Kisan Farmer',
+      email: email.trim() || 'farmer@farmy.app',
+      emailVerified: true,
+      isAnonymous: true,
+      phoneNumber: phoneNumber ? `${countryCode}${phoneNumber}` : '+91 9876543210',
+      photoURL: null,
+      providerData: [{ providerId: 'demo' }]
+    };
+    localStorage.setItem('farmy_demo_user', JSON.stringify(demoUser));
+    onAuthSuccess(demoUser);
+  };
+
+  // Provider-aware Firebase error mapper displaying actual errors and actionable guidance
+  const handleFirebaseError = (err: any, provider: 'email' | 'phone' | 'google' = 'email'): string => {
+    console.error(`Firebase Auth error (${provider}):`, err);
+    const code: string = err?.code || '';
+    const rawMsg: string = err?.message || '';
+
+    // Provider not enabled in Firebase Console
+    if (code === 'auth/operation-not-allowed') {
+      setErrorType('operation_not_allowed');
+      if (provider === 'phone') {
+        return `Firebase Phone Authentication is not enabled in this Firebase project (${code}). Please enable the "Phone" sign-in provider in Firebase Console > Authentication > Sign-in method > Phone.`;
+      } else if (provider === 'google') {
+        return `Google Sign-In is not enabled in this Firebase project (${code}). Please enable the "Google" provider in Firebase Console > Authentication > Sign-in method > Google.`;
+      } else {
+        return `Email/Password sign-in is not enabled in this Firebase project (${code}). Please enable "Email/Password" in Firebase Console > Authentication > Sign-in method.`;
+      }
+    }
+
+    // Domain not authorized in Firebase Console
+    if (code === 'auth/unauthorized-domain') {
+      setErrorType('unauthorized_domain');
+      return `Domain "${window.location.hostname}" is not authorized in Firebase (${code}). Add this domain to Authorized Domains in Firebase Console > Authentication > Settings.`;
+    }
+
+    setErrorType('other');
 
     switch (code) {
-      // Phone Authentication Specific
-      case 'auth/operation-not-allowed':
-        return `Firebase Phone Authentication is not enabled in this Firebase project (error: ${code}). Please enable the "Phone" sign-in provider in Firebase Console > Authentication > Sign-in method > Phone.`;
-      case 'auth/invalid-phone-number':
-        return `The phone number entered is invalid (${code}). Please ensure the country code is correct and the number has standard length.`;
-      case 'auth/missing-phone-number':
-        return `Please enter a valid phone number (${code}).`;
-      case 'auth/quota-exceeded':
-        return `SMS quota exceeded for this Firebase project (${code}). Please add phone numbers for testing in Firebase Console or try again later.`;
-      case 'auth/captcha-check-failed':
-        return `reCAPTCHA verification failed (${code}). Please try again or refresh the page.`;
-      case 'auth/invalid-app-credential':
-        return `Firebase app verification failed (${code}). Please ensure this domain is added to Authorized Domains in Firebase Console > Authentication > Settings.`;
-      case 'auth/unauthorized-domain':
-        return `Domain not authorized in Firebase (${code}). Add this domain to Authorized Domains in Firebase Console > Authentication > Settings.`;
-      case 'auth/invalid-verification-code':
-        return `Incorrect 6-digit verification code (${code}). Please check your SMS and try again.`;
-      case 'auth/code-expired':
-        return `The verification code has expired (${code}). Please click "Resend OTP" to get a fresh code.`;
-      case 'auth/session-expired':
-        return `The SMS session has expired (${code}). Please request a new verification code.`;
+      // Rate limiting & security
       case 'auth/too-many-requests':
-        return `Too many requests sent (${code}). For your security, please wait a few moments and retry.`;
+        return 'Too many attempts, try again later (auth/too-many-requests). For your security, please wait a few moments before trying again.';
+
+      // Phone OTP verification
+      case 'auth/invalid-verification-code':
+        return 'The 6-digit verification code is incorrect (auth/invalid-verification-code). Please check your SMS and try again.';
+      case 'auth/code-expired':
+        return 'The verification code has expired (auth/code-expired). Please tap "Resend code" to receive a fresh code.';
+      case 'auth/session-expired':
+        return 'The verification session has expired (auth/session-expired). Please tap "Resend code" to get a fresh code.';
+      case 'auth/invalid-phone-number':
+        return `The phone number entered is invalid (${code}). Please ensure the country code is correct and standard digits are entered.`;
+      case 'auth/missing-phone-number':
+        return 'Please enter a valid phone number.';
+      case 'auth/quota-exceeded':
+        return `SMS quota exceeded for this Firebase project (${code}). You can add test phone numbers in Firebase Console > Authentication > Sign-in method > Phone (Phone numbers for testing).`;
+      case 'auth/captcha-check-failed':
+        return `reCAPTCHA verification failed (${code}). Please try again.`;
+      case 'auth/invalid-app-credential':
+        return `Firebase app verification failed (${code}). Ensure domain "${window.location.hostname}" is added to Authorized Domains in Firebase Console > Authentication > Settings.`;
+      case 'auth/credential-already-in-use':
+        return `This phone number or credential is already linked to another account (${code}).`;
+
+      // Network & general
       case 'auth/network-request-failed':
-        return `Network request failed (${code}). Please check your internet connection and retry.`;
+        return `Network connection failed (${code}). Please check your internet connection and retry.`;
       case 'auth/internal-error':
         return `Firebase internal error (${code}): ${rawMsg || 'Please try again.'}`;
 
-      // Email / Password / Google Authentication
+      // Email / Password
       case 'auth/invalid-email':
         return 'Please enter a valid email address.';
       case 'auth/user-not-found':
@@ -187,6 +233,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
         return 'This email is already registered. Please sign in or use password reset.';
       case 'auth/weak-password':
         return 'Password should be at least 6 characters with letters and numbers.';
+
+      // Google OAuth
       case 'auth/popup-closed-by-user':
         return 'Google Sign-In was cancelled before finishing.';
       case 'auth/popup-blocked':
@@ -252,7 +300,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
 
       onAuthSuccess(user);
     } catch (err: any) {
-      setErrorMsg(handleFirebaseError(err));
+      setErrorMsg(handleFirebaseError(err, 'email'));
     } finally {
       setLoading(false);
     }
@@ -264,6 +312,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+    setErrorType(null);
     setInfoMsg(null);
 
     if (!fullName.trim()) {
@@ -315,7 +364,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
       setUnverifiedEmail(user.email || email.trim());
       setAuthMode('verify_email');
     } catch (err: any) {
-      setErrorMsg(handleFirebaseError(err));
+      setErrorMsg(handleFirebaseError(err, 'email'));
     } finally {
       setLoading(false);
     }
@@ -328,6 +377,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
     if (resendCooldown > 0) return;
     setLoading(true);
     setErrorMsg(null);
+    setErrorType(null);
     setInfoMsg(null);
     try {
       if (auth.currentUser) {
@@ -338,7 +388,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
         setInfoMsg(`To receive a fresh verification link, please enter your password on the login screen and click Sign In.`);
       }
     } catch (err: any) {
-      setErrorMsg(handleFirebaseError(err));
+      setErrorMsg(handleFirebaseError(err, 'email'));
     } finally {
       setLoading(false);
     }
@@ -350,6 +400,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+    setErrorType(null);
     setInfoMsg(null);
 
     if (!email.trim()) {
@@ -362,7 +413,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
       await sendPasswordResetEmail(auth, email.trim());
       setAuthMode('reset_sent');
     } catch (err: any) {
-      setErrorMsg(handleFirebaseError(err));
+      setErrorMsg(handleFirebaseError(err, 'email'));
     } finally {
       setLoading(false);
     }
@@ -373,6 +424,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   // ==========================================
   const handleGoogleSignIn = async () => {
     setErrorMsg(null);
+    setErrorType(null);
     setInfoMsg(null);
     setLoading(true);
 
@@ -396,7 +448,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
 
       onAuthSuccess(user);
     } catch (err: any) {
-      setErrorMsg(handleFirebaseError(err));
+      setErrorMsg(handleFirebaseError(err, 'google'));
     } finally {
       setLoading(false);
     }
@@ -418,7 +470,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   };
 
   const isValidE164Phone = (formatted: string): boolean => {
-    // E.164: + followed by 1-3 digits country code and 7-12 digits subscriber number (total 8-15 digits)
+    // E.164: + followed by 1-3 digits country code and 7-14 digits subscriber number
     return /^\+[1-9]\d{7,14}$/.test(formatted);
   };
 
@@ -449,7 +501,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
         // reCAPTCHA solved
       },
       'expired-callback': () => {
-        setErrorMsg('reCAPTCHA verification expired. Please click Send OTP again.');
+        setErrorMsg('reCAPTCHA verification expired. Please tap "Send Code" again.');
         if (recaptchaVerifierRef.current) {
           try {
             recaptchaVerifierRef.current.clear();
@@ -467,11 +519,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   const handleSendPhoneOtp = async (e?: React.SyntheticEvent) => {
     if (e) e.preventDefault();
     setErrorMsg(null);
+    setErrorType(null);
     setInfoMsg(null);
 
     const formattedPhone = formatE164Phone(countryCode, phoneNumber);
     if (!isValidE164Phone(formattedPhone)) {
-      setErrorMsg('Please enter a valid mobile number with standard digits (e.g. 10 digits for India).');
+      setErrorMsg('Please enter a valid phone number with country code and standard digits.');
       return;
     }
 
@@ -484,7 +537,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
       setConfirmationResult(confirmation);
       setSentToPhone(formattedPhone);
       setAuthMode('phone_otp');
-      setResendCooldown(60);
+      setResendCooldown(30);
       setOtpValues(['', '', '', '', '', '']);
       setInfoMsg(`Verification code sent to ${formattedPhone}`);
       setTimeout(() => otpInputRefs.current[0]?.focus(), 150);
@@ -500,7 +553,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
       const container = document.getElementById('recaptcha-container');
       if (container) container.innerHTML = '';
 
-      setErrorMsg(handleFirebaseError(err));
+      setErrorMsg(handleFirebaseError(err, 'phone'));
     } finally {
       setLoading(false);
     }
@@ -546,6 +599,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+    setErrorType(null);
     setInfoMsg(null);
 
     const code = otpValues.join('').trim();
@@ -555,21 +609,32 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
     }
 
     if (!confirmationResult) {
-      setErrorMsg('Verification session expired. Please request a new OTP code.');
+      setErrorMsg('Verification session expired. Please tap "Resend code" to request a new code.');
       return;
     }
 
     setLoading(true);
     try {
       const userCredential = await confirmationResult.confirm(code);
-      const user = userCredential.user;
+      let finalUser = userCredential.user;
+
+      // Link credentials if an existing authenticated session exists (e.g. Email/Password + Phone 2FA / Merging)
+      if (auth.currentUser && auth.currentUser.uid !== userCredential.user.uid) {
+        try {
+          const credential = PhoneAuthProvider.credential(confirmationResult.verificationId, code);
+          const linkedResult = await linkWithCredential(auth.currentUser, credential);
+          finalUser = linkedResult.user;
+        } catch (linkErr: any) {
+          console.warn('Phone credential link note:', linkErr);
+        }
+      }
 
       // Sync Firestore profile for phone user
       try {
-        await setDoc(doc(db, 'users', user.uid), {
-          id: user.uid,
-          phoneNumber: user.phoneNumber,
-          displayName: user.displayName || `Farmer ${user.phoneNumber?.slice(-4) || ''}`,
+        await setDoc(doc(db, 'users', finalUser.uid), {
+          id: finalUser.uid,
+          phoneNumber: finalUser.phoneNumber,
+          displayName: finalUser.displayName || `Farmer ${finalUser.phoneNumber?.slice(-4) || ''}`,
           authProvider: 'phone',
           lastLoginAt: serverTimestamp(),
         }, { merge: true });
@@ -578,10 +643,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
       }
 
       setInfoMsg('Phone verified successfully! Welcome to FARMY.');
-      onAuthSuccess(user);
+      onAuthSuccess(finalUser);
     } catch (err: any) {
       console.error('Firebase Phone Auth OTP verify error:', err);
-      setErrorMsg(handleFirebaseError(err));
+      // Stay on OTP screen and show inline error so user can retry directly without leaving
+      setErrorMsg(handleFirebaseError(err, 'phone'));
     } finally {
       setLoading(false);
     }
@@ -728,10 +794,57 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              className="mb-4 p-3 rounded-xl bg-red-950/80 border border-red-500/40 text-red-200 text-xs flex items-start gap-2.5 shadow-sm"
+              className="mb-4 p-3.5 rounded-xl bg-red-950/90 border border-red-500/40 text-red-200 text-xs shadow-md space-y-2.5"
             >
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-              <div className="flex-1 leading-relaxed">{errorMsg}</div>
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <div className="flex-1 leading-relaxed">{errorMsg}</div>
+              </div>
+
+              {/* Actionable Helper for Unauthorized Domain */}
+              {errorType === 'unauthorized_domain' && (
+                <div className="pt-2 border-t border-red-500/25 flex flex-col gap-2">
+                  <div className="flex items-center justify-between bg-black/40 px-2.5 py-1.5 rounded-lg text-[11px] font-mono text-emerald-300">
+                    <span className="truncate">{window.location.hostname}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(window.location.hostname);
+                        setCopiedDomain(true);
+                        setTimeout(() => setCopiedDomain(false), 2000);
+                      }}
+                      className="ml-2 px-2 py-0.5 rounded bg-emerald-700 hover:bg-emerald-600 text-white font-sans text-[10px] font-semibold flex items-center gap-1 cursor-pointer shrink-0 transition-colors"
+                    >
+                      {copiedDomain ? <Check className="w-3 h-3 text-amber-300" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedDomain ? 'Copied' : 'Copy Domain'}</span>
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] pt-0.5">
+                    <span className="text-red-300/80">Paste in Firebase &gt; Auth &gt; Settings</span>
+                    <button
+                      type="button"
+                      onClick={handleContinueAsDemo}
+                      className="text-amber-300 font-bold underline hover:text-amber-200 transition-colors"
+                    >
+                      Bypass &amp; Try Demo Mode &rarr;
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Actionable Helper for Operation Not Allowed */}
+              {errorType === 'operation_not_allowed' && (
+                <div className="pt-2 border-t border-red-500/25 flex items-center justify-between text-[11px]">
+                  <span className="text-red-300/80">Enable in Firebase &gt; Auth &gt; Sign-in method</span>
+                  <button
+                    type="button"
+                    onClick={handleContinueAsDemo}
+                    className="text-amber-300 font-bold underline hover:text-amber-200 transition-colors"
+                  >
+                    Bypass &amp; Try Demo Mode &rarr;
+                  </button>
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -960,7 +1073,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
               Standard SMS rates may apply. A 6-digit verification code will be sent to your device.
             </p>
 
-            {/* Send OTP Golden Button */}
+            {/* Send Code Golden Button */}
             <button
               type="submit"
               disabled={loading}
@@ -969,10 +1082,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin text-stone-950" />
-                  <span>Sending Verification Code...</span>
+                  <span>Sending Code...</span>
                 </>
               ) : (
-                <span>Send OTP</span>
+                <span>Send Code</span>
               )}
             </button>
 
@@ -1024,31 +1137,31 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
               ))}
             </div>
 
-            {/* Verify & Continue Button */}
+            {/* Verify Button */}
             <button
               type="submit"
-              disabled={loading}
-              className="w-full py-3.5 px-6 rounded-xl font-bold text-stone-950 bg-amber-400 hover:bg-amber-300 active:scale-[0.98] transition-all shadow-lg shadow-amber-950/40 text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75"
+              disabled={loading || otpValues.join('').trim().length < 6}
+              className="w-full py-3.5 px-6 rounded-xl font-bold text-stone-950 bg-amber-400 hover:bg-amber-300 active:scale-[0.98] transition-all shadow-lg shadow-amber-950/40 text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin text-stone-950" />
-                  <span>Verifying Code...</span>
+                  <span>Verifying...</span>
                 </>
               ) : (
-                <span>Verify & Continue</span>
+                <span>Verify</span>
               )}
             </button>
 
-            {/* Secondary Actions: Resend OTP & Change Number */}
+            {/* Secondary Actions: Resend code (with 30s cooldown) & Change Number */}
             <div className="flex items-center justify-between text-xs pt-1 text-emerald-200/80">
               <button
                 type="button"
                 onClick={() => handleSendPhoneOtp()}
                 disabled={resendCooldown > 0 || loading}
-                className="text-amber-400 font-semibold hover:underline disabled:opacity-50 disabled:no-underline transition-colors"
+                className="text-amber-400 font-semibold hover:underline disabled:opacity-50 disabled:no-underline transition-colors cursor-pointer"
               >
-                {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
+                {resendCooldown > 0 ? `Resend code (${resendCooldown}s)` : 'Resend code'}
               </button>
 
               <button
@@ -1057,7 +1170,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
                   setAuthMode('login');
                   setActiveTab('phone');
                 }}
-                className="text-emerald-300 hover:text-white underline transition-colors"
+                className="text-emerald-300 hover:text-white underline transition-colors cursor-pointer"
               >
                 Change Phone Number
               </button>
@@ -1282,8 +1395,20 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
           </div>
         )}
 
+        {/* Instant Demo Farmer Mode Access (Allows testing full application without Firebase Auth configuration) */}
+        <div className="mt-5 text-center">
+          <button
+            type="button"
+            onClick={handleContinueAsDemo}
+            className="w-full py-2.5 px-4 rounded-xl bg-emerald-950/70 hover:bg-emerald-900/80 border border-emerald-500/30 text-emerald-200 text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:text-white cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>Explore App in Demo Farmer Mode</span>
+          </button>
+        </div>
+
         {/* FOOTER BRANDING (Matches Reference Image Exactly) */}
-        <div className="mt-7 pt-4 border-t border-emerald-800/40 text-center flex flex-col items-center justify-center space-y-2 relative z-10">
+        <div className="mt-6 pt-4 border-t border-emerald-800/40 text-center flex flex-col items-center justify-center space-y-2 relative z-10">
           <div className="text-[11px] font-mono tracking-widest text-emerald-400/50 uppercase">
             FARMY v1.0.0
           </div>
