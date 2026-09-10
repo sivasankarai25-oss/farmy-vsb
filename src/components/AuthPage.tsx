@@ -25,6 +25,7 @@ import {
   createUserWithEmailAndPassword, 
   sendEmailVerification, 
   sendPasswordResetEmail, 
+  signOut,
   RecaptchaVerifier, 
   signInWithPhoneNumber,
   updateProfile,
@@ -222,7 +223,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
 
       // Check if email is verified
       if (!user.emailVerified) {
-        setUnverifiedEmail(user.email || email.trim());
+        const userEmail = user.email || email.trim();
+        setUnverifiedEmail(userEmail);
+        // Do the same as after registration: resend verification link and sign out
+        try {
+          await sendEmailVerification(user);
+        } catch (vErr) {
+          console.warn('Could not resend verification email on login:', vErr);
+        }
+        await signOut(auth);
         setAuthMode('verify_email');
         setLoading(false);
         return;
@@ -300,8 +309,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
         console.warn('Firestore doc creation error:', dbErr);
       }
 
+      // Do not sign them in automatically - explicitly sign out
+      await signOut(auth);
+
       setUnverifiedEmail(user.email || email.trim());
-      setInfoMsg('Account created successfully! We have sent a verification link to your email.');
       setAuthMode('verify_email');
     } catch (err: any) {
       setErrorMsg(handleFirebaseError(err));
@@ -313,36 +324,18 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   // ==========================================
   // 3. EMAIL VERIFICATION CHECKS & RESEND
   // ==========================================
-  const handleCheckEmailVerified = async () => {
-    setLoading(true);
-    setErrorMsg(null);
-    try {
-      if (auth.currentUser) {
-        await auth.currentUser.reload();
-        if (auth.currentUser.emailVerified) {
-          onAuthSuccess(auth.currentUser);
-          return;
-        }
-      }
-      setErrorMsg('Your email is not verified yet. Please click the link in your inbox, then click here.');
-    } catch (err: any) {
-      setErrorMsg(handleFirebaseError(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleResendEmailVerification = async () => {
     if (resendCooldown > 0) return;
     setLoading(true);
     setErrorMsg(null);
+    setInfoMsg(null);
     try {
       if (auth.currentUser) {
         await sendEmailVerification(auth.currentUser);
         setInfoMsg(`A fresh verification email has been sent to ${auth.currentUser.email}.`);
-        setResendCooldown(45);
+        setResendCooldown(60);
       } else {
-        setErrorMsg('Please sign in first so we can re-send your verification link.');
+        setInfoMsg(`To receive a fresh verification link, please enter your password on the login screen and click Sign In.`);
       }
     } catch (err: any) {
       setErrorMsg(handleFirebaseError(err));
@@ -1181,45 +1174,32 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
               <Mail className="w-8 h-8 animate-bounce" />
             </div>
 
-            <p className="text-xs text-emerald-200/80 leading-relaxed px-2">
-              Please click the verification link sent to your email to activate your FARMY profile. If you have already verified, click below to proceed.
-            </p>
+            <div className="p-4 rounded-xl bg-[#07190f]/90 border border-emerald-800/60 text-center">
+              <p className="text-sm text-emerald-100 font-medium leading-relaxed">
+                We have sent you a verification email to <span className="text-amber-400 font-bold break-all">{unverifiedEmail || email}</span>. Verify it and log in
+              </p>
+            </div>
 
+            {/* Login Button */}
             <button
               type="button"
-              onClick={handleCheckEmailVerified}
-              disabled={loading}
-              className="w-full py-3.5 px-6 rounded-xl font-bold text-stone-950 bg-amber-400 hover:bg-amber-300 active:scale-[0.98] transition-all shadow-lg shadow-amber-950/40 text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75"
+              onClick={() => {
+                switchMode('login');
+                setActiveTab('email');
+              }}
+              className="w-full py-3.5 px-6 rounded-xl font-bold text-stone-950 bg-amber-400 hover:bg-amber-300 active:scale-[0.98] transition-all shadow-lg shadow-amber-950/40 text-sm flex items-center justify-center gap-2 cursor-pointer"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin text-stone-950" />
-                  <span>Checking Status...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4 text-stone-950" />
-                  <span>I've Verified My Email</span>
-                </>
-              )}
+              <span>Login</span>
             </button>
 
-            <div className="flex items-center justify-center gap-3 pt-2 text-xs">
+            <div className="pt-2 text-center">
               <button
                 type="button"
                 onClick={handleResendEmailVerification}
                 disabled={resendCooldown > 0 || loading}
-                className="text-amber-400 font-semibold hover:underline disabled:opacity-50 disabled:no-underline transition-colors"
+                className="text-xs text-amber-400 font-semibold hover:underline disabled:opacity-50 disabled:no-underline transition-colors"
               >
-                {resendCooldown > 0 ? `Resend email in ${resendCooldown}s` : 'Resend Verification Email'}
-              </button>
-              <span className="text-emerald-700">•</span>
-              <button
-                type="button"
-                onClick={() => switchMode('login')}
-                className="text-emerald-300 hover:text-white underline transition-colors"
-              >
-                Back to Sign In
+                {resendCooldown > 0 ? `Resend email in ${resendCooldown}s` : 'Did not receive it? Resend Email'}
               </button>
             </div>
           </div>
@@ -1283,13 +1263,18 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
               <CheckCircle2 className="w-7 h-7" />
             </div>
 
-            <p className="text-xs text-emerald-100/90 leading-relaxed px-2">
-              We sent you a password change link to <strong className="text-amber-400 font-semibold">{email}</strong>. Please check your inbox and spam folder.
-            </p>
+            <div className="p-4 rounded-xl bg-[#07190f]/90 border border-emerald-800/60 text-center">
+              <p className="text-sm text-emerald-100 font-medium leading-relaxed">
+                We sent you a password change link to <span className="text-amber-400 font-bold break-all">{email}</span>
+              </p>
+            </div>
 
             <button
               type="button"
-              onClick={() => switchMode('login')}
+              onClick={() => {
+                switchMode('login');
+                setActiveTab('email');
+              }}
               className="w-full py-3.5 px-6 rounded-xl font-bold text-stone-950 bg-amber-400 hover:bg-amber-300 active:scale-[0.98] transition-all shadow-lg shadow-amber-950/40 text-sm flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Sign In</span>
