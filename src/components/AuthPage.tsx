@@ -92,7 +92,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   // Status & Feedback State
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [errorType, setErrorType] = useState<'unauthorized_domain' | 'operation_not_allowed' | 'other' | null>(null);
+  const [errorType, setErrorType] = useState<'unauthorized_domain' | 'operation_not_allowed' | 'billing_not_enabled' | 'other' | null>(null);
   const [copiedDomain, setCopiedDomain] = useState(false);
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -208,6 +208,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
         return 'Please enter a valid phone number.';
       case 'auth/quota-exceeded':
         return `SMS quota exceeded for this Firebase project (${code}). You can add test phone numbers in Firebase Console > Authentication > Sign-in method > Phone (Phone numbers for testing).`;
+      case 'auth/billing-not-enabled':
+        setErrorType('billing_not_enabled');
+        return 'Firebase requires Cloud Billing (Blaze plan) to send real carrier SMS text messages. To test for free without billing, add your phone number as a Test Phone Number in Firebase Console > Authentication > Sign-in method > Phone > "Phone numbers for testing" with code 123456.';
       case 'auth/captcha-check-failed':
         return `reCAPTCHA verification failed (${code}). Please try again.`;
       case 'auth/invalid-app-credential':
@@ -269,22 +272,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
         localStorage.removeItem('farmy_remembered_email');
       }
 
-      // Check if email is verified
-      if (!user.emailVerified) {
-        const userEmail = user.email || email.trim();
-        setUnverifiedEmail(userEmail);
-        // Do the same as after registration: resend verification link and sign out
-        try {
-          await sendEmailVerification(user);
-        } catch (vErr) {
-          console.warn('Could not resend verification email on login:', vErr);
-        }
-        await signOut(auth);
-        setAuthMode('verify_email');
-        setLoading(false);
-        return;
-      }
-
       // Sync user profile to Firestore
       try {
         await setDoc(doc(db, 'users', user.uid), {
@@ -342,8 +329,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
         displayName: fullName.trim()
       });
 
-      // Send Firebase Email Verification
-      await sendEmailVerification(user);
+      // Send Firebase Email Verification in background (optional, non-blocking)
+      try {
+        await sendEmailVerification(user);
+      } catch (vErr) {
+        console.warn('Could not send verification email on register:', vErr);
+      }
 
       // Save user profile in Firestore
       try {
@@ -358,11 +349,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
         console.warn('Firestore doc creation error:', dbErr);
       }
 
-      // Do not sign them in automatically - explicitly sign out
-      await signOut(auth);
-
-      setUnverifiedEmail(user.email || email.trim());
-      setAuthMode('verify_email');
+      // Sign the user in immediately so they can start using FARMY
+      onAuthSuccess(user);
     } catch (err: any) {
       setErrorMsg(handleFirebaseError(err, 'email'));
     } finally {
@@ -475,15 +463,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   };
 
   const getCleanRecaptchaVerifier = async (): Promise<RecaptchaVerifier> => {
-    // Ensure recaptcha-container element exists in the DOM
-    let container = document.getElementById('recaptcha-container');
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'recaptcha-container';
-      document.body.appendChild(container);
-    }
-
-    // Clean up any stale or previous widget to avoid internal reCAPTCHA collision
+    // Clean up any existing verifier
     if (recaptchaVerifierRef.current) {
       try {
         recaptchaVerifierRef.current.clear();
@@ -493,7 +473,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
       recaptchaVerifierRef.current = null;
     }
 
-    container.innerHTML = '';
+    // Completely remove old DOM element to guarantee grecaptcha state is reset
+    const oldContainer = document.getElementById('recaptcha-container');
+    if (oldContainer) {
+      oldContainer.remove();
+    }
+
+    // Create fresh DOM element
+    const container = document.createElement('div');
+    container.id = 'recaptcha-container';
+    document.body.appendChild(container);
 
     const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
       size: 'invisible',
@@ -511,7 +500,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
       }
     });
 
-    await verifier.render();
+    try {
+      await verifier.render();
+    } catch (renderErr) {
+      console.warn('reCAPTCHA render notice:', renderErr);
+    }
+
     recaptchaVerifierRef.current = verifier;
     return verifier;
   };
@@ -550,8 +544,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
         } catch (_) {}
         recaptchaVerifierRef.current = null;
       }
-      const container = document.getElementById('recaptcha-container');
-      if (container) container.innerHTML = '';
+      const oldCont = document.getElementById('recaptcha-container');
+      if (oldCont) oldCont.remove();
 
       setErrorMsg(handleFirebaseError(err, 'phone'));
     } finally {
@@ -843,6 +837,25 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
                   >
                     Bypass &amp; Try Demo Mode &rarr;
                   </button>
+                </div>
+              )}
+
+              {/* Actionable Helper for Billing Not Enabled (Phone Auth on Spark free plan) */}
+              {errorType === 'billing_not_enabled' && (
+                <div className="pt-2 border-t border-red-500/25 flex flex-col gap-2 text-[11px]">
+                  <div className="text-amber-300/90 leading-relaxed bg-amber-950/40 p-2 rounded-lg border border-amber-500/30">
+                    <strong>💡 Free Testing Without Billing:</strong> In Firebase Console &gt; Authentication &gt; Sign-in method &gt; Phone, expand <em>"Phone numbers for testing"</em>, add <span className="font-mono text-amber-200 font-bold">+91 6381412882</span> with code <span className="font-mono text-amber-200 font-bold">123456</span>.
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-red-300/80">Or test application right now:</span>
+                    <button
+                      type="button"
+                      onClick={handleContinueAsDemo}
+                      className="text-amber-300 font-bold underline hover:text-amber-200 transition-colors"
+                    >
+                      Bypass &amp; Try Demo Mode &rarr;
+                    </button>
+                  </div>
                 </div>
               )}
             </motion.div>
