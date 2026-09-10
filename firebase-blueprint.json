@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/firebase/firebase-tools/master/schema/firestore-blueprint.json",
+  "entities": {
+    "users": {
+      "title": "User",
+      "description": "Registered FARMY farmers and agricultural users",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Firebase Auth UID"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Farmer's full name"
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "Farmer phone number"
+        },
+        "authProvider": {
+          "type": "string",
+          "description": "Authentication method used (password, google, phone)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Account registration timestamp"
+        }
+      },
+      "required": ["id", "createdAt"]
+    }
+  },
+  "collections": {
+    "users": {
+      "entity": "users",
+      "description": "User profiles collection"
+    }
+  }
+}

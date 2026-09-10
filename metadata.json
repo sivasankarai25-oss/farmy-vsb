@@ -1,0 +1,6 @@
+{
+  "name": "FARMY - Smart Crop Guidance",
+  "description": "Intelligent crop guidance, soil health analysis, weather suitability, IPM pest diagnosis, and smart farming assistant for farmers.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
