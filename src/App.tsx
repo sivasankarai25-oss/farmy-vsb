@@ -50,27 +50,10 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        // Clear any previous demo session if real Firebase user signs in
         localStorage.removeItem('farmy_demo_user');
-        // Enforce email verification for password accounts
-        const isPasswordUser = user.providerData.some((p) => p.providerId === 'password');
-        if (isPasswordUser && !user.emailVerified) {
-          setCurrentUser(null);
-        } else {
-          setCurrentUser(user);
-        }
+        setCurrentUser(user);
       } else {
-        // If not signed in to Firebase, check for an active demo session
-        const demoRaw = localStorage.getItem('farmy_demo_user');
-        if (demoRaw) {
-          try {
-            setCurrentUser(JSON.parse(demoRaw));
-          } catch {
-            setCurrentUser(null);
-          }
-        } else {
-          setCurrentUser(null);
-        }
+        setCurrentUser(null);
       }
       setAuthLoading(false);
     });

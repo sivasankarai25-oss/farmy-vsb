@@ -148,21 +148,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
     }
   };
 
-  // Instant demo mode bypass: Allows exploring the complete application without Firebase Console setup
-  const handleContinueAsDemo = () => {
-    const demoUser: any = {
-      uid: 'demo-farmer-preview',
-      displayName: fullName.trim() || 'Kisan Farmer',
-      email: email.trim() || 'farmer@farmy.app',
-      emailVerified: true,
-      isAnonymous: true,
-      phoneNumber: phoneNumber ? `${countryCode}${phoneNumber}` : '+91 9876543210',
-      photoURL: null,
-      providerData: [{ providerId: 'demo' }]
-    };
-    localStorage.setItem('farmy_demo_user', JSON.stringify(demoUser));
-    onAuthSuccess(demoUser);
-  };
 
   // Provider-aware Firebase error mapper displaying actual errors and actionable guidance
   const handleFirebaseError = (err: any, provider: 'email' | 'phone' | 'google' = 'email'): string => {
@@ -272,19 +257,18 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
         localStorage.removeItem('farmy_remembered_email');
       }
 
-      // Sync user profile to Firestore
-      try {
-        await setDoc(doc(db, 'users', user.uid), {
-          id: user.uid,
-          email: user.email,
-          displayName: user.displayName || email.split('@')[0],
-          authProvider: 'password',
-          lastLoginAt: serverTimestamp(),
-        }, { merge: true });
-      } catch (dbErr) {
-        console.warn('Could not update Firestore profile:', dbErr);
-      }
+      // Non-blocking background sync to Firestore
+      setDoc(doc(db, 'users', user.uid), {
+        id: user.uid,
+        email: user.email,
+        displayName: user.displayName || email.split('@')[0],
+        authProvider: 'password',
+        lastLoginAt: serverTimestamp(),
+      }, { merge: true }).catch((dbErr) => {
+        console.warn('Firestore profile sync (background):', dbErr);
+      });
 
+      // Immediate success transition
       onAuthSuccess(user);
     } catch (err: any) {
       setErrorMsg(handleFirebaseError(err, 'email'));
@@ -324,32 +308,23 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
       const user = userCredential.user;
 
-      // Update Firebase Profile display name
-      await updateProfile(user, {
+      // Update Firebase Profile display name in background
+      updateProfile(user, {
         displayName: fullName.trim()
+      }).catch((pErr) => console.warn('Profile name update:', pErr));
+
+      // Non-blocking save to Firestore
+      setDoc(doc(db, 'users', user.uid), {
+        id: user.uid,
+        email: user.email,
+        displayName: fullName.trim(),
+        authProvider: 'password',
+        createdAt: serverTimestamp(),
+      }, { merge: true }).catch((dbErr) => {
+        console.warn('Firestore user doc sync (background):', dbErr);
       });
 
-      // Send Firebase Email Verification in background (optional, non-blocking)
-      try {
-        await sendEmailVerification(user);
-      } catch (vErr) {
-        console.warn('Could not send verification email on register:', vErr);
-      }
-
-      // Save user profile in Firestore
-      try {
-        await setDoc(doc(db, 'users', user.uid), {
-          id: user.uid,
-          email: user.email,
-          displayName: fullName.trim(),
-          authProvider: 'password',
-          createdAt: serverTimestamp(),
-        }, { merge: true });
-      } catch (dbErr) {
-        console.warn('Firestore doc creation error:', dbErr);
-      }
-
-      // Sign the user in immediately so they can start using FARMY
+      // Sign the user in immediately so they enter FARMY instantly
       onAuthSuccess(user);
     } catch (err: any) {
       setErrorMsg(handleFirebaseError(err, 'email'));
@@ -814,14 +789,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
                     </button>
                   </div>
                   <div className="flex items-center justify-between text-[11px] pt-0.5">
-                    <span className="text-red-300/80">Paste in Firebase &gt; Auth &gt; Settings</span>
-                    <button
-                      type="button"
-                      onClick={handleContinueAsDemo}
-                      className="text-amber-300 font-bold underline hover:text-amber-200 transition-colors"
-                    >
-                      Bypass &amp; Try Demo Mode &rarr;
-                    </button>
+                    <span className="text-red-300/80">Add to Firebase &gt; Auth &gt; Settings &gt; Authorized domains</span>
                   </div>
                 </div>
               )}
@@ -830,13 +798,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
               {errorType === 'operation_not_allowed' && (
                 <div className="pt-2 border-t border-red-500/25 flex items-center justify-between text-[11px]">
                   <span className="text-red-300/80">Enable in Firebase &gt; Auth &gt; Sign-in method</span>
-                  <button
-                    type="button"
-                    onClick={handleContinueAsDemo}
-                    className="text-amber-300 font-bold underline hover:text-amber-200 transition-colors"
-                  >
-                    Bypass &amp; Try Demo Mode &rarr;
-                  </button>
                 </div>
               )}
 
@@ -845,16 +806,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
                 <div className="pt-2 border-t border-red-500/25 flex flex-col gap-2 text-[11px]">
                   <div className="text-amber-300/90 leading-relaxed bg-amber-950/40 p-2 rounded-lg border border-amber-500/30">
                     <strong>💡 Free Testing Without Billing:</strong> In Firebase Console &gt; Authentication &gt; Sign-in method &gt; Phone, expand <em>"Phone numbers for testing"</em>, add <span className="font-mono text-amber-200 font-bold">+91 6381412882</span> with code <span className="font-mono text-amber-200 font-bold">123456</span>.
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-red-300/80">Or test application right now:</span>
-                    <button
-                      type="button"
-                      onClick={handleContinueAsDemo}
-                      className="text-amber-300 font-bold underline hover:text-amber-200 transition-colors"
-                    >
-                      Bypass &amp; Try Demo Mode &rarr;
-                    </button>
                   </div>
                 </div>
               )}
@@ -1408,17 +1359,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
           </div>
         )}
 
-        {/* Instant Demo Farmer Mode Access (Allows testing full application without Firebase Auth configuration) */}
-        <div className="mt-5 text-center">
-          <button
-            type="button"
-            onClick={handleContinueAsDemo}
-            className="w-full py-2.5 px-4 rounded-xl bg-emerald-950/70 hover:bg-emerald-900/80 border border-emerald-500/30 text-emerald-200 text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:text-white cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>Explore App in Demo Farmer Mode</span>
-          </button>
-        </div>
 
         {/* FOOTER BRANDING (Matches Reference Image Exactly) */}
         <div className="mt-6 pt-4 border-t border-emerald-800/40 text-center flex flex-col items-center justify-center space-y-2 relative z-10">
