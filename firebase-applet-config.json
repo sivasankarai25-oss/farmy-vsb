@@ -1,12 +1,10 @@
 {
-  "projectId": "plasma-gate-tpqwl",
-  "appId": "1:252153277573:web:ceb36506a4b6d7d8274dec",
-  "apiKey": "AIzaSyBAHyvxLosF5wGQVnmJJCwJIkOmb8rADII",
-  "authDomain": "plasma-gate-tpqwl.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-farmysmartcropgu-96ea6117-34b0-4ba1-befa-1e9ce835faa2",
-  "storageBucket": "plasma-gate-tpqwl.firebasestorage.app",
-  "messagingSenderId": "252153277573",
-  "measurementId": "",
-  "oAuthClientId": "252153277573-vajibrphbugkdscou991riah1ountscj.apps.googleusercontent.com",
-  "recaptchaSiteKey": ""
+  "projectId": "farmy-38598",
+  "appId": "1:317330262357:web:cc686c22af8849846d47dc",
+  "apiKey": "AIzaSyA35czttB8wYFayygM07d5S4z03KDs_IEw",
+  "authDomain": "farmy-38598.firebaseapp.com",
+  "storageBucket": "farmy-38598.firebasestorage.app",
+  "messagingSenderId": "317330262357",
+  "measurementId": "G-1NTZWWZV2P",
+  "firestoreDatabaseId": "(default)"
 }
