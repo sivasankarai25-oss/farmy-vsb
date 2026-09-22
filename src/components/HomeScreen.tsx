@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   Search, Sparkles, CloudSun, Sprout, Tractor, TestTube, 
   Bug, Calculator, ArrowRight, ChevronRight, Droplets, 
-  Thermometer, MapPin, Calendar, CheckCircle2, ShieldAlert
+  Thermometer, MapPin, Calendar, CheckCircle2, ShieldAlert, Gamepad2
 } from 'lucide-react';
 import { Crop, FarmCrop, FarmingTask, WeatherData } from '../types';
 import { allCrops } from '../data/cropsIndex';
@@ -96,7 +96,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               className="px-4 py-3 bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm rounded-xl border border-white/20 backdrop-blur-sm transition-all flex items-center space-x-1.5"
             >
               <Tractor className="w-4 h-4 text-emerald-300" />
-              <span>My Farm ({farmCrops.length} Active)</span>
+              <span>{t.myFarmActive} ({farmCrops.length} {t.activeCrops})</span>
             </button>
           </div>
         </div>
@@ -122,7 +122,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               Matching Crops ({filteredCrops.length})
             </div>
             {filteredCrops.length === 0 ? (
-              <p className="text-xs text-stone-500 px-2 py-3">No crops found matching "{searchQuery}".</p>
+              <p className="text-xs text-stone-500 px-2 py-3">{t.noCropsFound} "{searchQuery}".</p>
             ) : (
               filteredCrops.map(crop => (
                 <div
@@ -193,7 +193,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               onClick={() => onNavigateTab('tools')}
               className="text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center space-x-1"
             >
-              <span>Weather Analysis</span>
+              <span>{t.weatherAnalysis}</span>
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -209,8 +209,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-800 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
             <TestTube className="w-4 h-4" />
           </div>
-          <h4 className="text-xs font-extrabold text-stone-900">Soil Health Check</h4>
-          <p className="text-[11px] text-stone-500 mt-0.5">Test pH & nutrients</p>
+          <h4 className="text-xs font-extrabold text-stone-900">{t.soilHealthCheckShort}</h4>
+          <p className="text-[11px] text-stone-500 mt-0.5">{t.testPhNutrients}</p>
         </button>
 
         <button
@@ -220,8 +220,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-800 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
             <Bug className="w-4 h-4" />
           </div>
-          <h4 className="text-xs font-extrabold text-stone-900">Pest Doctor & IPM</h4>
-          <p className="text-[11px] text-stone-500 mt-0.5">Symptom diagnosis</p>
+          <h4 className="text-xs font-extrabold text-stone-900">{t.pestDoctorIpm}</h4>
+          <p className="text-[11px] text-stone-500 mt-0.5">{t.symptomDiagnosis}</p>
         </button>
 
         <button
@@ -231,8 +231,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
             <Calculator className="w-4 h-4" />
           </div>
-          <h4 className="text-xs font-extrabold text-stone-900">Profit Calculator</h4>
-          <p className="text-[11px] text-stone-500 mt-0.5">Yield & cost estimates</p>
+          <h4 className="text-xs font-extrabold text-stone-900">{t.profitCalculatorShort}</h4>
+          <p className="text-[11px] text-stone-500 mt-0.5">{t.yieldCostEstimates}</p>
         </button>
 
         <button
@@ -243,9 +243,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <Sparkles className="w-4 h-4" />
           </div>
           <h4 className="text-xs font-extrabold text-stone-900">FARMY AI Chat</h4>
-          <p className="text-[11px] text-stone-500 mt-0.5">Instant crop advice</p>
+          <p className="text-[11px] text-stone-500 mt-0.5">{t.instantCropAdvice}</p>
         </button>
       </div>
+
+      {/* 4b. FARMY QUIZ ENTRY CARD */}
+      <button
+        onClick={() => onNavigateTab('quiz')}
+        className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-amber-50 to-emerald-50 border border-amber-200 rounded-2xl shadow-xs hover:shadow-md transition-all text-left"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-white text-emerald-700 flex items-center justify-center shadow-xs shrink-0">
+            <Gamepad2 className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="text-xs font-extrabold text-stone-900">{t.farmyQuizCardTitle}</h4>
+            <p className="text-[11px] text-stone-600 mt-0.5">{t.farmyQuizCardDesc}</p>
+          </div>
+        </div>
+        <span className="text-xs font-black text-emerald-700 flex items-center gap-1 shrink-0 pl-2">
+          {t.playQuiz} <ArrowRight className="w-3.5 h-3.5" />
+        </span>
+      </button>
 
       {/* 5. RECOMMENDED CROPS FOR CURRENT SEASON */}
       <div className="space-y-3">
@@ -353,13 +372,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <div className="flex items-center justify-between border-b border-stone-100 pb-3">
           <div className="flex items-center space-x-2">
             <Tractor className="w-5 h-5 text-emerald-700" />
-            <h3 className="text-base font-bold text-stone-900">My Farm Overview</h3>
+            <h3 className="text-base font-bold text-stone-900">{t.myFarmOverview}</h3>
           </div>
           <button
             onClick={() => onNavigateTab('myfarm')}
             className="text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center space-x-1"
           >
-            <span>Open Dashboard</span>
+            <span>{t.openDashboard}</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -399,7 +418,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </span>
             <div className="space-y-2">
               {pendingTasks.length === 0 ? (
-                <p className="text-xs text-stone-400 py-3">No tasks due today. All caught up!</p>
+                <p className="text-xs text-stone-400 py-3">{t.noTasksToday}</p>
               ) : (
                 pendingTasks.map(task => (
                   <div key={task.id} className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs flex items-center justify-between">

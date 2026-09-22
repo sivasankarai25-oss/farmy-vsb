@@ -1,8 +1,9 @@
 import React from 'react';
-import { Home, Sprout, Sparkles, Tractor, Bot, Wrench } from 'lucide-react';
+import { Home, Sprout, Sparkles, Tractor, Bot, Wrench, Gamepad2, Store } from 'lucide-react';
 import { Language, translations } from '../utils/translations';
+import { procurementNavLabel, procurementNavLabelFull } from '../procurement/i18n';
 
-export type TabType = 'home' | 'crops' | 'recommend' | 'myfarm' | 'assistant' | 'tools';
+export type TabType = 'home' | 'crops' | 'recommend' | 'myfarm' | 'procurement' | 'quiz' | 'assistant' | 'tools';
 
 interface NavigationProps {
   activeTab: TabType;
@@ -22,6 +23,8 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'crops' as TabType, label: t.crops, icon: Sprout },
     { id: 'recommend' as TabType, label: t.recommend, icon: Sparkles, highlight: true },
     { id: 'myfarm' as TabType, label: t.myFarm, icon: Tractor },
+    { id: 'procurement' as TabType, label: procurementNavLabelFull[language], shortLabel: procurementNavLabel[language], icon: Store },
+    { id: 'quiz' as TabType, label: 'Quiz', icon: Gamepad2 },
     { id: 'assistant' as TabType, label: t.assistant, icon: Bot },
     { id: 'tools' as TabType, label: 'Tools', icon: Wrench },
   ];
@@ -30,7 +33,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     <>
       {/* Mobile Bottom Fixed Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-stone-200 shadow-lg md:hidden">
-        <div className="grid grid-cols-6 h-16 max-w-lg mx-auto">
+        <div className="grid grid-cols-8 h-16 max-w-lg mx-auto">
           {navItems.map(item => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -38,7 +41,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               <button
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
-                className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+                className={`flex flex-col items-center justify-center py-1 transition-all relative min-w-0 px-0.5 ${
                   isActive
                     ? 'text-emerald-700 font-bold'
                     : 'text-stone-500 hover:text-stone-800 font-medium'
@@ -46,22 +49,22 @@ export const Navigation: React.FC<NavigationProps> = ({
               >
                 {item.highlight ? (
                   <div
-                    className={`w-9 h-9 -mt-3 rounded-full flex items-center justify-center shadow-md transition-transform ${
+                    className={`w-8 h-8 -mt-3 rounded-full flex items-center justify-center shadow-md transition-transform ${
                       isActive
                         ? 'bg-emerald-600 text-white scale-110'
                         : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                     }`}
                   >
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-4 h-4" />
                   </div>
                 ) : (
-                  <Icon className={`w-5 h-5 mb-0.5 ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                  <Icon className={`w-[18px] h-[18px] mb-0.5 ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
                 )}
-                <span className="text-[10px] tracking-tight leading-none mt-0.5">
-                  {item.label}
+                <span className="text-[9px] tracking-tight leading-none mt-0.5 truncate max-w-full">
+                  {(item as { shortLabel?: string }).shortLabel ?? item.label}
                 </span>
                 {isActive && !item.highlight && (
-                  <span className="absolute top-0 w-8 h-0.5 bg-emerald-600 rounded-full" />
+                  <span className="absolute top-0 w-6 h-0.5 bg-emerald-600 rounded-full" />
                 )}
               </button>
             );

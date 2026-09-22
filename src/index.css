@@ -1,1 +1,56 @@
 @import "tailwindcss";
+
+:root {
+  --font-latin: "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-tamil: "Noto Sans Tamil", "Noto Sans", sans-serif;
+  --font-malayalam: "Noto Sans Malayalam", "Noto Sans", sans-serif;
+  --font-devanagari: "Noto Sans Devanagari", "Noto Sans", sans-serif;
+  --font-arabic: "Noto Sans Arabic", "Noto Sans", sans-serif;
+}
+
+/* A single stack that covers every supported script (English, Tamil, Malayalam,
+   Hindi, Arabic) so mixed or per-language content never renders as broken
+   tofu/boxes, regardless of which language is active. */
+html, body {
+  font-family:
+    "Noto Sans",
+    "Noto Sans Tamil",
+    "Noto Sans Malayalam",
+    "Noto Sans Devanagari",
+    "Noto Sans Arabic",
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+
+/* ===================== RTL (Arabic) support ===================== */
+/* The app sets <html dir="rtl"> when Arabic is active. Native block/inline
+   flow, text alignment, and Tailwind's logical spacing utilities (space-x,
+   gap, margin/padding "-inline-*") already mirror automatically under this
+   attribute. The rules below cover the handful of places that use *physical*
+   left/right utilities and need an explicit mirror in RTL. */
+[dir="rtl"] {
+  direction: rtl;
+}
+
+[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
+
+/* Flip fixed/absolute corner positioning that was authored with physical
+   left/right utilities (e.g. dropdown menus anchored with `right-0`). */
+[dir="rtl"] .absolute.right-0 {
+  right: auto;
+  left: 0;
+}
+[dir="rtl"] .absolute.left-0 {
+  left: auto;
+  right: 0;
+}
+
+/* Text inputs with a leading icon use pl-10/pr-11 physical padding; mirror it
+   so the icon and caret land on the correct visual side in RTL. */
+[dir="rtl"] input {
+  text-align: right;
+}
+

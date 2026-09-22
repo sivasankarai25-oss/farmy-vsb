@@ -170,15 +170,15 @@ export function saveSelectedLocation(loc: string): void {
   } catch {}
 }
 
-export function loadLanguage(): 'en' | 'ta' | 'hi' {
+export function loadLanguage(): 'en' | 'ta' | 'ml' | 'hi' | 'ar' {
   try {
     const saved = localStorage.getItem(LANGUAGE_KEY);
-    if (saved === 'ta' || saved === 'hi') return saved;
+    if (saved === 'ta' || saved === 'ml' || saved === 'hi' || saved === 'ar') return saved;
   } catch {}
   return 'en';
 }
 
-export function saveLanguage(lang: 'en' | 'ta' | 'hi'): void {
+export function saveLanguage(lang: 'en' | 'ta' | 'ml' | 'hi' | 'ar'): void {
   try {
     localStorage.setItem(LANGUAGE_KEY, lang);
   } catch {}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Sprout, MapPin, Globe, Bell, ChevronDown, Check, CloudSun, LogOut, User as UserIcon } from 'lucide-react';
-import { Language, translations } from '../utils/translations';
+import { Language, translations, LANGUAGE_OPTIONS } from '../utils/translations';
 import { FarmingTask, WeatherData } from '../types';
 import { User } from '../firebase';
 
@@ -133,48 +133,27 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Globe className="w-3.5 h-3.5 text-emerald-300" />
               <span className="font-semibold text-emerald-100">
-                {activeLang === 'en' ? 'EN' : activeLang === 'ta' ? 'தமிழ்' : 'हिन्दी'}
+                {LANGUAGE_OPTIONS.find(l => l.code === activeLang)?.nativeLabel || 'English'}
               </span>
             </button>
 
             {showLangMenu && (
-              <div className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-xl border border-stone-200 py-1.5 text-stone-800 z-50">
-                <button
-                  onClick={() => {
-                    onLanguageChange('en');
-                    setShowLangMenu(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-emerald-50 ${
-                    activeLang === 'en' ? 'font-bold text-emerald-700 bg-emerald-50' : ''
-                  }`}
-                >
-                  <span>English</span>
-                  {activeLang === 'en' && <Check className="w-3.5 h-3.5 text-emerald-600" />}
-                </button>
-                <button
-                  onClick={() => {
-                    onLanguageChange('ta');
-                    setShowLangMenu(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-emerald-50 ${
-                    activeLang === 'ta' ? 'font-bold text-emerald-700 bg-emerald-50' : ''
-                  }`}
-                >
-                  <span>தமிழ் (Tamil)</span>
-                  {activeLang === 'ta' && <Check className="w-3.5 h-3.5 text-emerald-600" />}
-                </button>
-                <button
-                  onClick={() => {
-                    onLanguageChange('hi');
-                    setShowLangMenu(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-emerald-50 ${
-                    activeLang === 'hi' ? 'font-bold text-emerald-700 bg-emerald-50' : ''
-                  }`}
-                >
-                  <span>हिन्दी (Hindi)</span>
-                  {activeLang === 'hi' && <Check className="w-3.5 h-3.5 text-emerald-600" />}
-                </button>
+              <div className="absolute right-0 mt-1.5 w-40 bg-white rounded-xl shadow-xl border border-stone-200 py-1.5 text-stone-800 z-50">
+                {LANGUAGE_OPTIONS.map(opt => (
+                  <button
+                    key={opt.code}
+                    onClick={() => {
+                      onLanguageChange(opt.code);
+                      setShowLangMenu(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-emerald-50 ${
+                      activeLang === opt.code ? 'font-bold text-emerald-700 bg-emerald-50' : ''
+                    }`}
+                  >
+                    <span>{opt.nativeLabel}</span>
+                    {activeLang === opt.code && <Check className="w-3.5 h-3.5 text-emerald-600" />}
+                  </button>
+                ))}
               </div>
             )}
           </div>

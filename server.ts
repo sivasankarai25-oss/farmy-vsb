@@ -35,6 +35,46 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'FARMY Backend' });
 });
 
+// ---------------------------------------------------------------------------
+// FARMY QUIZ API surface.
+//
+// The Quiz feature's real data path is Firebase Firestore, accessed directly
+// from the client (src/utils/quizStorage.ts), the same backend this app
+// already uses for authentication. Firestore's client SDK does not have a
+// service-side counterpart running in this Express process (no admin
+// credentials are configured), so these routes exist to satisfy the documented
+// API surface and always return honest fallback data rather than pretending to
+// read/write real progress. They never block or break the quiz UI, which talks
+// to Firestore directly and only touches these routes if a future admin-backed
+// implementation is wired in here.
+// ---------------------------------------------------------------------------
+
+const DEMO_LEADERBOARD = [
+  { userId: 'demo-1', username: 'Alex', totalScore: 4920 },
+  { userId: 'demo-2', username: 'Priya', totalScore: 4870 },
+  { userId: 'demo-3', username: 'Rahul', totalScore: 4810 },
+  { userId: 'demo-4', username: 'Siva', totalScore: 4750 },
+  { userId: 'demo-5', username: 'Meera', totalScore: 4600 },
+];
+
+app.get('/api/quiz/leaderboard', (req, res) => {
+  res.json({ entries: DEMO_LEADERBOARD, isDemo: true, note: 'Live leaderboard is served from Firestore on the client (quizLeaderboard collection).' });
+});
+
+app.post('/api/quiz/score', (req, res) => {
+  // Score submission is validated and written client-side to Firestore
+  // (quizLeaderboard/{uid}), never trusted blindly from the request body.
+  res.status(202).json({ accepted: false, note: 'Scores are written directly to Firestore from the client after server-side-style validation in quizStorage.ts.' });
+});
+
+app.get('/api/quiz/progress', (req, res) => {
+  res.status(404).json({ found: false, note: 'Progress is stored in Firestore (quizProgress/{uid}) with a localStorage fallback, read directly by the client.' });
+});
+
+app.post('/api/quiz/progress', (req, res) => {
+  res.status(202).json({ accepted: false, note: 'Progress is written directly to Firestore from the client; this endpoint is a placeholder for a future admin-backed implementation.' });
+});
+
 // AI Farm Assistant Chat endpoint (supports both /api/chat and /api/assistant)
 const handleChat = async (req: express.Request, res: express.Response) => {
   try {
@@ -46,12 +86,17 @@ const handleChat = async (req: express.Request, res: express.Response) => {
 
     const ai = getGenAI();
 
+    const languageName: string = context?.languageName || 'English';
+    const languageInstruction = languageName === 'English'
+      ? ''
+      : `\nIMPORTANT: Respond entirely in ${languageName}. Do not use English except for scientific/product names that have no common ${languageName} equivalent.\n`;
+
     // Prepare rich agricultural context
     const contextPrompt = `
 You are "Farmy Assistant", an expert, friendly, and practical agricultural scientist and smart farming advisor for farmers.
 You provide clear, actionable, and safe advice for smallholder and progressive farmers.
 Always emphasize Integrated Pest Management (IPM), soil health, responsible water stewardship, and remind farmers to cross-reference with local agricultural extension officers and official agrochemical labels.
-
+${languageInstruction}
 Farmer Context:
 - Current Location: ${context?.location || 'Unknown location'}
 - Soil Type: ${context?.soilType || 'Not specified'}

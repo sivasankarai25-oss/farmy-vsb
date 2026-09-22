@@ -9,6 +9,8 @@ import { FarmyAssistant } from './components/FarmyAssistant';
 import { ToolsMenu } from './components/ToolsMenu';
 import { CropDetailsModal } from './components/CropDetailsModal';
 import { AuthPage } from './components/AuthPage';
+import { QuizSection } from './components/quiz/QuizSection';
+import { ProcurementSection } from './components/procurement/ProcurementSection';
 import { auth, onAuthStateChanged, signOut, User } from './firebase';
 import { Crop, FarmCrop, FarmingTask, SoilReport, WeatherData } from './types';
 import { allCrops } from './data/cropsIndex';
@@ -19,7 +21,7 @@ import {
   loadSavedLocation, saveLocation, 
   loadSavedLanguage, saveLanguage 
 } from './utils/storage';
-import { Language, translations } from './utils/translations';
+import { Language, translations, getLanguageDir } from './utils/translations';
 import { Loader2 } from 'lucide-react';
 
 export default function App() {
@@ -97,6 +99,15 @@ export default function App() {
     setSelectedLocation(newLoc);
     saveLocation(newLoc);
   };
+
+  // Apply RTL / LTR direction and lang attribute to the whole document whenever
+  // the language changes (Arabic => rtl, everything else => ltr), and keep it
+  // correct on first load too.
+  useEffect(() => {
+    const dir = getLanguageDir(language);
+    document.documentElement.dir = dir;
+    document.documentElement.lang = language;
+  }, [language]);
 
   // Handle language update
   const handleLanguageChange = (newLang: Language) => {
@@ -190,6 +201,8 @@ export default function App() {
     return (
       <AuthPage 
         onAuthSuccess={(user) => setCurrentUser(user)} 
+        language={language}
+        onLanguageChange={handleLanguageChange}
       />
     );
   }
@@ -254,6 +267,23 @@ export default function App() {
             tasks={tasks}
             onUpdateTasks={handleUpdateTasks}
             onSelectCropDetails={(crop) => setSelectedCropModal(crop)}
+            language={language}
+          />
+        )}
+
+        {activeTab === 'procurement' && (
+          <ProcurementSection
+            user={currentUser}
+            language={language}
+            selectedLocation={selectedLocation}
+            farmCrops={farmCrops}
+          />
+        )}
+
+        {activeTab === 'quiz' && (
+          <QuizSection
+            userId={currentUser.uid}
+            username={currentUser.displayName || currentUser.email?.split('@')[0] || 'Farmer'}
             language={language}
           />
         )}

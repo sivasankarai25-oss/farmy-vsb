@@ -1,0 +1,15 @@
+# FARMY on Netlify: static Vite build + SPA fallback.
+# Smart Procurement talks straight to Firebase (Auth + Firestore) from the browser,
+# so it needs no server function. Make sure your Netlify domain is added to
+# Firebase Console -> Authentication -> Settings -> Authorized domains.
+[build]
+  command = "npx vite build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

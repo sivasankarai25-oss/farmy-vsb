@@ -218,3 +218,37 @@ export interface ChatMessage {
   timestamp: string;
   source?: 'gemini' | 'knowledge_base';
 }
+
+// ===================== FARMY QUIZ TYPES =====================
+
+export interface QuizUserProgress {
+  userId: string;
+  username: string;
+  currentQuiz: number;           // highest unlocked quiz number
+  completedQuizzes: number[];    // quiz numbers completed at least once
+  bestScores: Record<number, number>; // quizNumber -> best score (0-100)
+  totalScore: number;            // sum of best scores across all quizzes
+  questionsAnswered: number;
+  correctAnswers: number;
+  wrongAnswers: number;
+  currentStreak: number;
+  longestStreak: number;
+  lastPlayedQuiz: number | null;
+  updatedAt: string;
+}
+
+export interface QuizAttemptResult {
+  quizNumber: number;
+  correctCount: number;
+  wrongCount: number;
+  score: number; // out of 100
+  streakAtEnd: number;
+  completedAt: string;
+}
+
+export interface LeaderboardEntry {
+  userId: string;
+  username: string;
+  totalScore: number;
+  rank?: number;
+}

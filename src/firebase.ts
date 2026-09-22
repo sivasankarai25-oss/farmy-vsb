@@ -18,7 +18,11 @@ import {
   User,
   ConfirmationResult
 } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { 
+ getFirestore, doc, setDoc, getDoc, serverTimestamp,
+collection, query, where, onSnapshot, orderBy, limit, getDocs,
+runTransaction, writeBatch, arrayUnion, updateDoc
+} from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase safely
@@ -47,5 +51,16 @@ export {
   doc,
   setDoc,
   getDoc,
-  serverTimestamp
+  serverTimestamp,
+  collection,
+query,
+where,
+onSnapshot,
+orderBy,
+limit,
+getDocs,
+runTransaction,
+writeBatch,
+arrayUnion,
+updateDoc
 };

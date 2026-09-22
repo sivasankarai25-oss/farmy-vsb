@@ -45,7 +45,7 @@ export const ToolsMenu: React.FC<ToolsMenuProps> = ({
           className="inline-flex items-center space-x-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to Tools Hub</span>
+          <span>{t.backToToolsHub}</span>
         </button>
         <SoilCheck
           currentReport={soilReport}
@@ -65,7 +65,7 @@ export const ToolsMenu: React.FC<ToolsMenuProps> = ({
           className="inline-flex items-center space-x-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to Tools Hub</span>
+          <span>{t.backToToolsHub}</span>
         </button>
         <WeatherSuitability
           weather={weather}
@@ -86,7 +86,7 @@ export const ToolsMenu: React.FC<ToolsMenuProps> = ({
           className="inline-flex items-center space-x-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to Tools Hub</span>
+          <span>{t.backToToolsHub}</span>
         </button>
         <PestDiagnosis
           onSelectCrop={onSelectCrop}
@@ -104,7 +104,7 @@ export const ToolsMenu: React.FC<ToolsMenuProps> = ({
           className="inline-flex items-center space-x-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to Tools Hub</span>
+          <span>{t.backToToolsHub}</span>
         </button>
         <YieldProfitCalculator
           language={language}
@@ -120,13 +120,13 @@ export const ToolsMenu: React.FC<ToolsMenuProps> = ({
         <div className="max-w-2xl">
           <div className="inline-flex items-center space-x-1.5 bg-emerald-700/80 px-2.5 py-1 rounded-full text-xs font-bold text-emerald-100 mb-2 border border-emerald-500/30">
             <Wrench className="w-3.5 h-3.5 text-emerald-300" />
-            <span>Farm Decision Support Suite</span>
+            <span>{t.toolsHubBadge}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-            Agricultural Intelligence Tools
+            {t.toolsHubTitle}
           </h1>
           <p className="text-xs sm:text-sm text-emerald-100/90 mt-1.5 leading-relaxed">
-            Specialized calculators and diagnostic modules built specifically for field farmers and agricultural extension workers.
+            {t.toolsHubSubtitle}
           </p>
         </div>
       </div>
@@ -143,17 +143,17 @@ export const ToolsMenu: React.FC<ToolsMenuProps> = ({
               <TestTube className="w-6 h-6" />
             </div>
             <h3 className="font-extrabold text-base text-stone-900 group-hover:text-amber-800 transition-colors">
-              Soil Health & Testing Check
+              {t.soilToolTitle}
             </h3>
             <p className="text-xs text-stone-600 mt-1 leading-relaxed">
-              Input soil texture, pH, and N-P-K levels. Get your Soil Health Score and check real-time soil compatibility with any crop before sowing.
+              {t.soilToolDesc}
             </p>
           </div>
 
           <div className="pt-4 mt-4 border-t border-stone-100 flex items-center justify-between text-xs font-bold text-amber-800">
-            <span>Current Score: {soilReport.healthScore}/100</span>
+            <span>{t.soilCurrentScore}: {soilReport.healthScore}/100</span>
             <span className="flex items-center space-x-1 group-hover:translate-x-1 transition-transform">
-              <span>Open Soil Tool</span>
+              <span>{t.soilOpenTool}</span>
               <ChevronRight className="w-4 h-4" />
             </span>
           </div>
@@ -169,17 +169,17 @@ export const ToolsMenu: React.FC<ToolsMenuProps> = ({
               <CloudSun className="w-6 h-6" />
             </div>
             <h3 className="font-extrabold text-base text-stone-900 group-hover:text-sky-800 transition-colors">
-              Weather & Climate Suitability
+              {t.weatherToolTitle}
             </h3>
             <p className="text-xs text-stone-600 mt-1 leading-relaxed">
-              Compare live Open-Meteo satellite weather and 5-day forecasts against ideal crop temperature, humidity, and rainfall tolerances to avoid disease outbreaks.
+              {t.weatherToolDesc}
             </p>
           </div>
 
           <div className="pt-4 mt-4 border-t border-stone-100 flex items-center justify-between text-xs font-bold text-sky-800">
-            <span>{weather ? `${Math.round(weather.current.temp)}°C, ${weather.current.humidity}% Hum.` : 'Live Satellite Feed'}</span>
+            <span>{weather ? `${Math.round(weather.current.temp)}°C, ${weather.current.humidity}% Hum.` : t.weatherLiveFeed}</span>
             <span className="flex items-center space-x-1 group-hover:translate-x-1 transition-transform">
-              <span>Open Weather Tool</span>
+              <span>{t.weatherOpenTool}</span>
               <ChevronRight className="w-4 h-4" />
             </span>
           </div>
@@ -195,17 +195,17 @@ export const ToolsMenu: React.FC<ToolsMenuProps> = ({
               <Bug className="w-6 h-6" />
             </div>
             <h3 className="font-extrabold text-base text-stone-900 group-hover:text-rose-800 transition-colors">
-              Pest Doctor & Disease Diagnosis
+              {t.pestToolTitle}
             </h3>
             <p className="text-xs text-stone-600 mt-1 leading-relaxed">
-              Identify insect damage and fungus by visual symptoms (leaf curl, yellowing, holes, wilting). Access organic, biological, and strict IPM chemical solutions.
+              {t.pestToolDesc}
             </p>
           </div>
 
           <div className="pt-4 mt-4 border-t border-stone-100 flex items-center justify-between text-xs font-bold text-rose-800">
-            <span>IPM & Safe PHI Wait Times</span>
+            <span>{t.pestSafeWait}</span>
             <span className="flex items-center space-x-1 group-hover:translate-x-1 transition-transform">
-              <span>Open Pest Doctor</span>
+              <span>{t.pestOpenTool}</span>
               <ChevronRight className="w-4 h-4" />
             </span>
           </div>
@@ -221,17 +221,17 @@ export const ToolsMenu: React.FC<ToolsMenuProps> = ({
               <Calculator className="w-6 h-6" />
             </div>
             <h3 className="font-extrabold text-base text-stone-900 group-hover:text-emerald-800 transition-colors">
-              Yield & Profit Calculator
+              {t.calcToolTitle}
             </h3>
             <p className="text-xs text-stone-600 mt-1 leading-relaxed">
-              Estimate total production expenses (seeds, fertilizer, labor, irrigation) versus expected market returns and calculate your net profit per acre and ROI %.
+              {t.calcToolDesc}
             </p>
           </div>
 
           <div className="pt-4 mt-4 border-t border-stone-100 flex items-center justify-between text-xs font-bold text-emerald-800">
-            <span>Pre-filled Mandi Economics</span>
+            <span>{t.calcPrefilled}</span>
             <span className="flex items-center space-x-1 group-hover:translate-x-1 transition-transform">
-              <span>Open Calculator</span>
+              <span>{t.calcOpenTool}</span>
               <ChevronRight className="w-4 h-4" />
             </span>
           </div>

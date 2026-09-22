@@ -5,5 +5,118 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // FARMY QUIZ: each user's own progress document (private)
+    match /quizProgress/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // FARMY QUIZ: global leaderboard - anyone signed in can read all entries,
+    // but a user can only ever write their OWN entry, and only within valid bounds.
+    match /quizLeaderboard/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.userId == userId
+        && request.resource.data.totalScore is number
+        && request.resource.data.totalScore >= 0
+        && request.resource.data.totalScore <= 5000;
+    }
+
+    // ======================= FARMY SMART PROCUREMENT =======================
+    // Officers are signed-in users that have a document at procurementOfficers/{uid}.
+    // Only an administrator can create that document (Firebase console / Admin SDK);
+    // clients can never write to it.
+    function isSignedIn() { return request.auth != null; }
+    function isOfficer() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/procurementOfficers/$(request.auth.uid));
+    }
+    function centreDoc(id) {
+      return get(/databases/$(database)/documents/procurementCentres/$(id)).data;
+    }
+
+    match /procurementOfficers/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Farmer's procurement profile (private)
+    match /procurementProfiles/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+      allow read: if isOfficer();
+    }
+
+    // Procurement centres: everyone signed in can read, only officers can change
+    match /procurementCentres/{centreId} {
+      allow read: if isSignedIn();
+      allow write: if isOfficer();
+    }
+
+    // Per-slot booking counters. A farmer may only add or release ONE seat and
+    // never above the centre's per-slot capacity.
+    match /procurementSlots/{slotId} {
+      allow read: if isSignedIn();
+      allow write: if isOfficer();
+      allow create: if isSignedIn()
+        && request.resource.data.booked == 1
+        && request.resource.data.capacity == centreDoc(request.resource.data.centreId).slotCapacity
+        && centreDoc(request.resource.data.centreId).closed == false;
+      allow update: if isSignedIn()
+        && request.resource.data.capacity == resource.data.capacity
+        && request.resource.data.centreId == resource.data.centreId
+        && request.resource.data.date == resource.data.date
+        && request.resource.data.slotId == resource.data.slotId
+        && request.resource.data.booked >= 0
+        && request.resource.data.booked <= resource.data.capacity
+        && (request.resource.data.booked == resource.data.booked + 1
+            || request.resource.data.booked == resource.data.booked - 1);
+    }
+
+    // Token number counter per centre (increments by exactly 1)
+    match /procurementCounters/{centreId} {
+      allow read: if isSignedIn();
+      allow write: if isOfficer();
+      allow create: if isSignedIn() && request.resource.data.next == 1002;
+      allow update: if isSignedIn() && request.resource.data.next == resource.data.next + 1;
+    }
+
+    // Full booking record: visible to its owner and to officers only
+    match /procurementBookings/{bookingId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isOfficer());
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'BOOKED'
+        && request.resource.data.paymentStatus == 'PENDING';
+      allow update: if isOfficer()
+        || (isSignedIn()
+            && resource.data.userId == request.auth.uid
+            && resource.data.status == 'BOOKED'
+            && request.resource.data.status == 'CANCELLED'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'history']));
+    }
+
+    // Public, personal-data-free queue projection (token + status only) used for
+    // the live queue. Farmers create their own entry and may only cancel it.
+    match /procurementQueue/{bookingId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'BOOKED';
+      allow update: if isOfficer()
+        || (isSignedIn()
+            && resource.data.userId == request.auth.uid
+            && resource.data.status == 'BOOKED'
+            && request.resource.data.status == 'CANCELLED'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']));
+    }
+
+    // In-app notifications
+    match /procurementNotifications/{notificationId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && (isOfficer() || request.resource.data.userId == request.auth.uid);
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+    }
   }
 }

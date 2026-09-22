@@ -29,6 +29,7 @@ export const FarmyAssistant: React.FC<FarmyAssistantProps> = ({
   language,
 }) => {
   const t = translations[language];
+  const langNames: Record<string, string> = { en: 'English', ta: 'Tamil', ml: 'Malayalam', hi: 'Hindi', ar: 'Arabic' };
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -83,6 +84,7 @@ export const FarmyAssistant: React.FC<FarmyAssistantProps> = ({
         soilInfo: `Type: ${soilReport.soilType}, pH: ${soilReport.ph}, N: ${soilReport.nitrogenLevel}, P: ${soilReport.phosphorusLevel}, K: ${soilReport.potassiumLevel}`,
         weatherInfo: weather ? `Temp: ${Math.round(weather.current.temp)}°C, Humidity: ${weather.current.humidity}%, Condition: ${weather.current.condition}` : 'Not available',
         language,
+        languageName: langNames[language] || 'English',
       };
 
       const response = await fetch('/api/assistant', {
@@ -161,13 +163,13 @@ export const FarmyAssistant: React.FC<FarmyAssistantProps> = ({
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h1 className="text-lg sm:text-xl font-extrabold text-white">FARMY AI Assistant</h1>
+              <h1 className="text-lg sm:text-xl font-extrabold text-white">{t.assistantTitle}</h1>
               <span className="text-[10px] uppercase font-extrabold bg-emerald-500 text-stone-900 px-2 py-0.5 rounded-full">
-                Online
+                {t.assistantOnline}
               </span>
             </div>
             <p className="text-xs text-emerald-200/90 mt-0.5">
-              Trained on Agricultural University crop protocols & extension manuals
+              {t.assistantSubtitle}
             </p>
           </div>
         </div>
@@ -178,14 +180,14 @@ export const FarmyAssistant: React.FC<FarmyAssistantProps> = ({
           title="Reset Chat"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Clear Chat</span>
+          <span className="hidden sm:inline">{t.assistantClearChat}</span>
         </button>
       </div>
 
       {/* Suggested Quick Questions */}
       <div className="bg-white rounded-2xl border border-stone-200 p-3 shadow-xs">
         <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block mb-2 px-1">
-          Frequently Asked Questions:
+          {t.assistantFAQ}
         </span>
         <div className="flex flex-wrap gap-1.5">
           {sampleQuestions.map((sq, i) => (
@@ -239,7 +241,7 @@ export const FarmyAssistant: React.FC<FarmyAssistantProps> = ({
         {loading && (
           <div className="flex items-center space-x-2 text-stone-400 text-xs italic pl-10">
             <Sparkles className="w-4 h-4 animate-spin text-emerald-600" />
-            <span>FARMY is preparing agricultural advice...</span>
+            <span>{t.assistantThinking}</span>
           </div>
         )}
 
@@ -250,7 +252,7 @@ export const FarmyAssistant: React.FC<FarmyAssistantProps> = ({
       <div className="bg-white rounded-2xl border border-stone-200 p-2 sm:p-3 shadow-md flex items-center space-x-2">
         <input
           type="text"
-          placeholder="Ask FARMY any crop question (e.g. fertilizer for brinjal, whitefly cure)..."
+          placeholder={t.assistantPlaceholder}
           value={inputQuery}
           onChange={(e) => setInputQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
@@ -262,7 +264,7 @@ export const FarmyAssistant: React.FC<FarmyAssistantProps> = ({
           disabled={!inputQuery.trim() || loading}
           className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 shrink-0"
         >
-          <span>Send</span>
+          <span>{t.assistantSend}</span>
           <Send className="w-3.5 h-3.5" />
         </button>
       </div>
