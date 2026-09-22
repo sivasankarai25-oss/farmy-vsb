@@ -1,4 +1,4 @@
-# Farmy Quiz Multilingual Update
+# Farmy Quiz Multilingual 
 
 The Quiz now uses the selected Farmy language for the actual quiz content, not only the surrounding buttons.
 
